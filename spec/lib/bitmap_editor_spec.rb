@@ -29,6 +29,12 @@ describe BitmapEditor::Parser do
     expect(subject.parse(source)).to eq ['Image width and height `I` command is missing']
   end
 
+  it 'returns all error messages on empty file' do
+    source = <<-eos
+    eos
+    expect(subject.parse(source)).to eq ['Print out `S` command is missing', 'Image width and height `I` command is missing']
+  end
+
   it 'returns parsed correct output' do
     source = <<-eos
       I 5 6
