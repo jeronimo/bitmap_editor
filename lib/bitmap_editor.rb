@@ -29,7 +29,7 @@ module BitmapEditor
     def parse(source = nil)
       @source = source
       check_for_errors
-
+      return errors if errors.any?
       @source.split("\n").each do |line|
         parse_each_line(line)
       end
@@ -38,9 +38,90 @@ module BitmapEditor
 
     def check_for_errors
       errors << 'Print out `S` command is missing' if !source.match('S')
-      errors << 'Image width and height `I` command is missing' if !source.match('I')
+      errors << '`I` command is missing' if !source.match('I')
       @result = errors if errors.any?
       @result
+    end
+
+    def set_config(params)
+      x, y = params[1].to_i, params[2].to_i
+      return errors << '`I` command missing arguments' if params[1].nil? || params[2].nil?
+      return errors << '`I` argument can\'t be 0' if x == 0 || y == 0
+      return errors << '`I` argument can\'t be negative' if x < 0 || y < 0
+      @config = {x: x, y: y}
+    end
+
+    def get_dot_config(params)
+      x, y, symbol = params[1].to_i, params[2].to_i, params[3]
+      return errors << '`L` command missing arguments' if params[1].nil? || params[2].nil? || symbol.nil?
+      return errors << '`L` argument can\'t be 0' if x == 0 || y == 0
+      return errors << '`L` argument can\'t be negative' if x < 0 || y < 0
+      {x: x - 1, y: y - 1, symbol: symbol}
+    end
+
+    def get_vertical_config(params)
+      x, y1, y2, symbol = params[1].to_i, params[2].to_i, params[3].to_i, params[4]
+      return errors << '`V` command missing arguments' if params[1].nil? || params[2].nil? || params[3].nil? || symbol.nil?
+      return errors << '`V` argument can\'t be 0' if x == 0 || y1 == 0 || y2 == 0
+      return errors << '`V` argument can\'t be negative' if x < 0 || y1 < 0 || y2 < 0
+      {x: x - 1, y1: y1 - 1, y2: y2 - 1, symbol: symbol}
+    end
+
+    def get_horizontal_config(params)
+      x1, x2, y, symbol = params[1].to_i, params[2].to_i, params[3].to_i, params[4]
+      return errors << '`H` command missing arguments' if params[1].nil? || params[2].nil? || params[3].nil? || symbol.nil?
+      return errors << '`H` argument can\'t be 0' if x1 == 0 || x2 == 0 || y == 0
+      return errors << '`H` argument can\'t be negative' if x1 < 0 || x2 < 0 || y < 0
+      {x1: x1 - 1, x2: x2 - 1, y: y - 1, symbol: symbol}
+    end
+
+    def draw_empty
+      output = []
+      config[:y].times do |y|
+        output[y] = [] if output[y].nil?
+        config[:x].to_i.times do |x|
+          output[y][x] ='O'
+        end
+      end
+      @result = output
+      output
+    end
+
+    def draw_dot(params)
+      dot_config = get_dot_config(params)
+      return errors if errors.any?
+      draw_empty if result.empty?
+      result[dot_config[:y]][dot_config[:x]] = dot_config[:symbol]
+      result
+    end
+
+    def draw_vertical(params)
+      vertical_config = get_vertical_config(params)
+      return errors if errors.any?
+      draw_empty if result.empty?
+      (vertical_config[:y1]..vertical_config[:y2]).each do |y|
+        result[y][vertical_config[:x]] = vertical_config[:symbol]
+      end
+      result
+    end
+
+    def draw_horizontal(params)
+      horizontal_config = get_horizontal_config(params)
+      return errors if errors.any?
+      draw_empty if result.empty?
+      (horizontal_config[:x1]..horizontal_config[:x2]).each do |x|
+        result[horizontal_config[:y]][x] = horizontal_config[:symbol]
+      end
+      result
+    end
+
+    def output
+      return errors if errors.any?
+      o = []
+      config[:y].times do |y|
+        o << result[y].join + "\n"
+      end if errors.empty?
+      o.join
     end
 
     def parse_each_line(line = nil)
@@ -48,41 +129,19 @@ module BitmapEditor
 
       case params[0]
       when 'I'
-        @config = {x: params[1].to_i, y: params[2].to_i}
-        config[:y].times do |y|
-          result[y] = [] if result[y].nil?
-          config[:x].to_i.times do |x|
-            result[y][x] ='O'
-          end
-        end
+        set_config(params)
+        draw_empty
       when 'C'
-        config[:y].times do |y|
-          result[y] = [] if result[y].nil?
-          config[:x].to_i.times do |x|
-            result[y][x] ='O'
-          end
-        end
+        draw_empty
       when 'L'
-        line_config = {x: params[1].to_i - 1, y: params[2].to_i - 1, symbol: params[3] }
-        result[line_config[:y]][line_config[:x]] = line_config[:symbol]
+        draw_dot(params)
       when 'V'
-        vertical = {x: params[1].to_i - 1, y1: params[2].to_i - 1, y2: params[3].to_i - 1, symbol: params[4] }
-        (vertical[:y1]..vertical[:y2]).each do |y|
-          result[y][vertical[:x]] = vertical[:symbol]
-        end
+        draw_vertical(params)
       when 'H'
-        horizontal = {x1: params[1].to_i - 1, x2: params[2].to_i - 1, y: params[3].to_i - 1, symbol: params[4] }
-        (horizontal[:x1]..horizontal[:x2]).each do |x|
-          result[horizontal[:y]][x] = horizontal[:symbol]
-        end
+        draw_horizontal(params)
       when 'S'
-        printout = []
-        config[:y].times do |y|
-          printout << result[y].join + "\n"
-        end
-        puts printout.join
+        output
       end
-      result
     end
 
   end

@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 require './lib/bitmap_editor'
 
-result = BitmapEditor::IO.new.read_file ARGV.first
-puts result
+raw = BitmapEditor::IO.new.read_file ARGV.first
+parser = BitmapEditor::Parser.new
+parser.parse(raw)
+puts parser.output
