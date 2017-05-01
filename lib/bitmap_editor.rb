@@ -10,20 +10,24 @@ module BitmapEditor
     def read_file(file = nil)
       return errors << "Please provide correct file" if file.nil? || !File.exists?(file)
       file = File.open(file)
-      lines = file.lines
       raw = file.read
       file.close
       raw
     end
   end
 
+  class Errors
+    attr_accessor :errors
+  end
+
   class Parser
-    attr_accessor :errors, :config, :source, :result
+    attr_accessor :errors, :config, :source, :matrix, :output
 
     def initialize
       @config = {}
       @errors = []
-      @result = []
+      @matrix = []
+      @output = ''
     end
 
     def parse(source = nil)
@@ -33,95 +37,107 @@ module BitmapEditor
       @source.split("\n").each do |line|
         parse_each_line(line)
       end
-      result
+      matrix
     end
 
     def check_for_errors
-      errors << 'Print out `S` command is missing' if !source.match('S')
+      errors << '`S` command is missing' if !source.match('S')
       errors << '`I` command is missing' if !source.match('I')
-      @result = errors if errors.any?
-      @result
+      @matrix = errors if errors.any?
+      @matrix
     end
 
-    def set_config(params)
+    def parse_config(params)
       x, y = params[1].to_i, params[2].to_i
       return errors << '`I` command missing arguments' if params[1].nil? || params[2].nil?
       return errors << '`I` argument can\'t be 0' if x == 0 || y == 0
       return errors << '`I` argument can\'t be negative' if x < 0 || y < 0
+      return errors << '`I` argument can\'t be higher than 250' if x > 250 || y > 250
       @config = {x: x, y: y}
     end
 
-    def get_dot_config(params)
+    def parse_dot(params)
       x, y, symbol = params[1].to_i, params[2].to_i, params[3]
       return errors << '`L` command missing arguments' if params[1].nil? || params[2].nil? || symbol.nil?
       return errors << '`L` argument can\'t be 0' if x == 0 || y == 0
       return errors << '`L` argument can\'t be negative' if x < 0 || y < 0
+      return errors << '`L` arguments are outside bitmap' if x > config[:x] || y > config[:y]
       {x: x - 1, y: y - 1, symbol: symbol}
     end
 
-    def get_vertical_config(params)
+    def parse_vertical(params)
       x, y1, y2, symbol = params[1].to_i, params[2].to_i, params[3].to_i, params[4]
       return errors << '`V` command missing arguments' if params[1].nil? || params[2].nil? || params[3].nil? || symbol.nil?
       return errors << '`V` argument can\'t be 0' if x == 0 || y1 == 0 || y2 == 0
       return errors << '`V` argument can\'t be negative' if x < 0 || y1 < 0 || y2 < 0
+      return errors << '`V` arguments are outside bitmap' if x > config[:x] || y1 > config[:y] || y2 > config[:y]
       {x: x - 1, y1: y1 - 1, y2: y2 - 1, symbol: symbol}
     end
 
-    def get_horizontal_config(params)
+    def parse_horizontal(params)
       x1, x2, y, symbol = params[1].to_i, params[2].to_i, params[3].to_i, params[4]
       return errors << '`H` command missing arguments' if params[1].nil? || params[2].nil? || params[3].nil? || symbol.nil?
       return errors << '`H` argument can\'t be 0' if x1 == 0 || x2 == 0 || y == 0
       return errors << '`H` argument can\'t be negative' if x1 < 0 || x2 < 0 || y < 0
+      return errors << '`H` arguments are outside bitmap' if x1 > config[:x] || x2 > config[:x] || y > config[:y]
       {x1: x1 - 1, x2: x2 - 1, y: y - 1, symbol: symbol}
     end
 
     def draw_empty
-      output = []
+      empty = []
       config[:y].times do |y|
-        output[y] = [] if output[y].nil?
+        empty[y] = [] if empty[y].nil?
         config[:x].to_i.times do |x|
-          output[y][x] ='O'
+          empty[y][x] ='O'
         end
       end
-      @result = output
-      output
+      @matrix = empty
     end
 
     def draw_dot(params)
-      dot_config = get_dot_config(params)
+      dot_config = parse_dot(params)
       return errors if errors.any?
-      draw_empty if result.empty?
-      result[dot_config[:y]][dot_config[:x]] = dot_config[:symbol]
-      result
+      draw_empty if matrix.empty?
+      matrix[dot_config[:y]][dot_config[:x]] = dot_config[:symbol]
+      matrix
     end
 
     def draw_vertical(params)
-      vertical_config = get_vertical_config(params)
+      vertical_config = parse_vertical(params)
       return errors if errors.any?
-      draw_empty if result.empty?
+      draw_empty if matrix.empty?
       (vertical_config[:y1]..vertical_config[:y2]).each do |y|
-        result[y][vertical_config[:x]] = vertical_config[:symbol]
+        matrix[y][vertical_config[:x]] = vertical_config[:symbol]
       end
-      result
+      matrix
     end
 
     def draw_horizontal(params)
-      horizontal_config = get_horizontal_config(params)
+      horizontal_config = parse_horizontal(params)
       return errors if errors.any?
-      draw_empty if result.empty?
+      draw_empty if matrix.empty?
       (horizontal_config[:x1]..horizontal_config[:x2]).each do |x|
-        result[horizontal_config[:y]][x] = horizontal_config[:symbol]
+        matrix[horizontal_config[:y]][x] = horizontal_config[:symbol]
       end
-      result
+      matrix
+    end
+
+    def serialize
+      return errors if errors.any?
+      o = []
+      config[:y].times do |y|
+        o << matrix[y].join + "\n"
+      end if errors.empty?
+      @output += o.join
     end
 
     def output
       return errors if errors.any?
-      o = []
-      config[:y].times do |y|
-        o << result[y].join + "\n"
-      end if errors.empty?
-      o.join
+      @output
+    end
+
+    def result
+      matrix
     end
 
     def parse_each_line(line = nil)
@@ -129,7 +145,7 @@ module BitmapEditor
 
       case params[0]
       when 'I'
-        set_config(params)
+        parse_config(params)
         draw_empty
       when 'C'
         draw_empty
@@ -140,7 +156,7 @@ module BitmapEditor
       when 'H'
         draw_horizontal(params)
       when 'S'
-        output
+        serialize
       end
     end
 
