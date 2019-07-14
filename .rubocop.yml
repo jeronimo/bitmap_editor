@@ -1,0 +1,17 @@
+Metrics/AbcSize:
+  Exclude:
+    - 'lib/bitmap_editor/errors.rb'
+    - 'lib/bitmap_editor/parser.rb'
+Metrics/CyclomaticComplexity:
+  Exclude:
+    - 'lib/bitmap_editor/errors.rb'
+    - 'lib/bitmap_editor/parser.rb'
+Metrics/PerceivedComplexity:
+  Exclude:
+    - 'lib/bitmap_editor/errors.rb'
+Metrics/MethodLength:
+  Exclude:
+    - 'lib/bitmap_editor/errors.rb'
+    - 'lib/bitmap_editor/parser.rb'
+Metrics/BlockLength:
+  ExcludedMethods: ['describe', 'context']

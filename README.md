@@ -1,7 +1,13 @@
 # Bitmap editor
 
-42nd fork. A lot of examples to look at :) But for the sake of fun let's not do that.
-
 # Running
+* Tested with ruby 2.5.3 only
+* `>bin/bitmap_editor examples/simple.txt`
 
-`>bin/bitmap_editor examples/show.txt`
+# Testing
+* `gem install bundler`
+* `bundle`
+* `bundler exec rspec`
+
+# TODO
+* refactor `BitmapEditor::Errors` class and/or move away from raising StandardError

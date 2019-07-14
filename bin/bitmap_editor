@@ -1,7 +1,9 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require './lib/bitmap_editor'
 
 source = BitmapEditor::IO.new.read_file ARGV.first
-parser = BitmapEditor::Parser.new
-parser.parse(source)
-puts parser.output
+parser = BitmapEditor::Parser.new(source)
+parser.parse
+print parser
